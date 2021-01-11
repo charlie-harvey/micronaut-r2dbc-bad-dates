@@ -4,15 +4,13 @@ import io.micronaut.context.annotation.Property
 import io.micronaut.data.model.query.builder.sql.Dialect
 import io.micronaut.data.r2dbc.annotation.R2dbcRepository
 import io.micronaut.data.repository.reactive.RxJavaCrudRepository
-import io.micronaut.data.tck.entities.Owner
-import io.micronaut.data.tck.entities.Person
-import io.micronaut.data.tck.entities.Pet
 import io.micronaut.test.extensions.spock.annotation.MicronautTest
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import spock.lang.Specification
 
 import javax.inject.Inject
+import java.time.LocalDateTime
 
 @MicronautTest(rollback = false)
 @H2Properties
@@ -22,12 +20,14 @@ import javax.inject.Inject
 class H2MultipleDataSourcesSpec extends Specification {
 
     @Inject OtherRepository otherRepository
-    @Inject H2OwnerRepository ownerRepository
+    @Inject H2OwnerWithLocalDateTimeRepository ownerRepository
 
     void 'test multiple datasources'() {
         when:"An entity is saved in one datasource"
-        Flux.from(ownerRepository.saveAll([new Owner("Fred"), new Owner("Bob")])).collectList().block()
-        Mono.from(otherRepository.saveAll([new Owner("Joe")])).block()
+        LocalDateTime ldt = LocalDateTime.now();
+        Flux.from(ownerRepository.saveAll([new OwnerWithLocalDateTime("Fred", ldt),
+                                           new OwnerWithLocalDateTime("Bob", ldt)])).collectList().block()
+        Mono.from(otherRepository.saveAll([new OwnerWithLocalDateTime("Joe", ldt)])).block()
 
         then:"Only reflected in one"
         otherRepository.findByName("Joe").isPresent()
@@ -37,7 +37,7 @@ class H2MultipleDataSourcesSpec extends Specification {
     }
 
     @R2dbcRepository(value = "other", dialect = Dialect.H2)
-    static interface OtherRepository extends RxJavaCrudRepository<Owner, Long> {
-        Optional<Owner> findByName(String name)
+    static interface OtherRepository extends RxJavaCrudRepository<OwnerWithLocalDateTime, Long> {
+        Optional<OwnerWithLocalDateTime> findByName(String name)
     }
 }
